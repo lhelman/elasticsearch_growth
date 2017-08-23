@@ -51,3 +51,27 @@ def test_es_stats_to_total_size_per_day():
     stats = {"indices": indices_input}
     assert get_growth.es_stats_to_total_size_per_day(stats, '%Y.%m.%d') == (
         size_per_date_output, somelog_notime_size + someotherlog_notime_size)
+
+def test_apply_indices_filters():
+    stats = {
+            "indices": {
+                "yes_index01": {"some": "data"},
+                "no__index01": {"some": "data"},
+                "yes_index02": {"some": "data"},
+                "yes_index03": {"some": "data"},
+                "no__index02": {"some": "data"}
+                }
+            }
+    stats_desiredoutput = {
+            "indices": {
+                "yes_index01": {"some": "data"},
+                "yes_index02": {"some": "data"},
+                "yes_index03": {"some": "data"}
+                }
+            }
+    filters = [
+            lambda i: i.startswith("yes_index")
+            ]
+
+    stats = get_growth.apply_indices_filters(stats, filters)
+    assert stats == stats_desiredoutput

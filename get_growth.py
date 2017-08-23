@@ -73,9 +73,31 @@ def filter_size_per_day(first_day, last_day, d):
     """
     return {k: v for k, v in d.iteritems() if first_day <= k < last_day}
 
+def apply_indices_filters(stats, filters):
+    if filters:
+        delete_keys = []
+        for index_name, o in stats["indices"].iteritems():
+            found = False
+            for f in filters:
+                if f(index_name):
+                    found = True
+                    break
+            if not found:
+                delete_keys.append(index_name)
+
+        for i in delete_keys:
+            del stats["indices"][i]
+            
+    return stats
+
 
 def main():
+    filters = []
+    if options.filter_startswith:
+        filters.append(lambda i: i.startswith(options.filter_startswith))
+
     stats = json.load(options.filename)
+    stats = apply_indices_filters(stats, filters)
     full_size_per_day, constants = es_stats_to_total_size_per_day(stats, options.dateformat)
     analized_size_per_day = filter_size_per_day(-1 * options.discard, 0, full_size_per_day)
     if not analized_size_per_day:
@@ -105,7 +127,7 @@ def get_options():
                         help='Filename with the output of a curl -s localhost:9200/_stats ' +
                              'if not present it will try to read it from stdin')
     parser.add_argument('-o', '--dateformat',
-                        help='Indices Date format',
+                        help='Indices Date format [%%Y.%%m.%%d]',
                         default='%Y.%m.%d')
     parser.add_argument('-x', '--discard',
                         type=int,
@@ -119,6 +141,9 @@ def get_options():
                         help='How many days do we want to store. Default 30',
                         type=int,
                         default=30)
+    parser.add_argument('-S', '--filter_startswith',
+                        help='Consider only indices starting with this string',
+                        default=None),
     parser.add_argument('-p', '--plot',
                         help='Service',
                         action='store_true')
